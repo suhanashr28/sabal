@@ -1,0 +1,17 @@
+/* Song controls are links, so they open a real playable YouTube result. */
+.song-play { display: grid; place-items: center; text-decoration: none; }
+.momo-photo { display: block; width: 100%; max-height: 260px; margin: 0 0 18px; border-radius: 7px; object-fit: cover; }
+.photo-card { grid-column: auto; }
+.embedded-songs { display: grid; gap: 18px; }
+.embedded-songs section { padding: 15px; border-radius: 7px; background: #2b2528; }
+.embedded-songs strong { display: block; margin-bottom: 9px; }
+.embedded-songs iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 5px; }
+.spotify-songs iframe { height: 152px; aspect-ratio: auto; }
+.food-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.food-choice-grid figure { margin: 0; overflow: hidden; border-radius: 7px; background: #2b2528; }
+.food-choice-grid img { display: block; width: 100%; aspect-ratio: 1; height: auto; object-fit: cover; }
+.food-choice-grid figcaption { padding: 10px 12px; font-weight: bold; }
+.favorite-photo-grid { grid-auto-rows: 180px; }
+.favorite-photo-grid img { width: 100%; height: 100%; aspect-ratio: 1; object-fit: contain; background: #171416; }
+@media (max-width: 520px) { .favorite-photo-grid { grid-auto-rows: 150px; } }
+@media (max-width: 520px) { .food-choice-grid { grid-template-columns: 1fr; } }

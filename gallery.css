@@ -1,0 +1,47 @@
+/* Equal thumbnail frames: photos stay fully visible rather than being cropped. */
+.gallery img {
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #282126;
+  cursor: zoom-in;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.gallery img:hover,
+.gallery img:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .38);
+  outline: 2px solid #f1939e;
+  outline-offset: 2px;
+}
+
+.photo-viewer {
+  width: min(1040px, calc(100% - 32px));
+  max-height: min(760px, calc(100% - 32px));
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #1b181a;
+  color: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+}
+
+.photo-viewer::backdrop { background: rgba(0, 0, 0, .82); backdrop-filter: blur(4px); }
+.photo-viewer-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr); min-height: 520px; }
+.photo-viewer-image-wrap { display: grid; place-items: center; background: #0c0b0c; }
+.photo-viewer-image { display: block; max-width: 100%; max-height: min(760px, calc(100vh - 32px)); width: auto; height: auto; object-fit: contain; }
+.photo-story { display: flex; flex-direction: column; justify-content: center; padding: 42px 36px; }
+.photo-story .tag { margin: 0 0 10px; }
+.photo-count { margin: 0 0 20px; color: #aaa; font-size: 13px; }
+.photo-story h2 { margin: 0 0 18px; font-size: clamp(28px, 3vw, 42px); letter-spacing: -1.5px; }
+.photo-story-text { margin: 0; color: #d1c9cc; font: 18px/1.65 Georgia, serif; }
+.photo-viewer-close { position: absolute; top: 12px; right: 15px; z-index: 1; width: 38px; height: 38px; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff; font-size: 31px; line-height: 1; cursor: pointer; }
+.photo-viewer-close:hover, .photo-viewer-close:focus-visible { background: var(--red); outline: 2px solid #fff; }
+
+@media (max-width: 760px) {
+  .photo-viewer-layout { grid-template-columns: 1fr; min-height: 0; }
+  .photo-viewer-image { max-height: 55vh; }
+  .photo-story { padding: 25px 24px 30px; }
+  .photo-story-text { font-size: 16px; }
+}
