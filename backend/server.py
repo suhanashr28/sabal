@@ -105,7 +105,7 @@ class Handler(BaseHTTPRequestHandler):
   raw=secrets.token_urlsafe(32); duration=30*86400 if remember else 12*3600
   with self.app.db() as db:
    db.execute('DELETE FROM sessions WHERE expires<?',(time.time(),)); db.execute('INSERT INTO sessions VALUES(?,?)',(hashlib.sha256(raw.encode()).hexdigest(),time.time()+duration))
-  return f'lf_session={raw}; HttpOnly; SameSite=Strict; Path=/; Max-Age={duration}'
+  return f'lf_session={raw}; HttpOnly; SameSite=Strict; Path=/; Max-Age={duration}' + ('; Secure' if self.server.public_origin else '')
  def body(self,limit=1000000):
   try: size=int(self.headers.get('Content-Length','0'))
   except ValueError: raise APIError('Invalid upload size.')
@@ -125,10 +125,11 @@ class Handler(BaseHTTPRequestHandler):
   return value.strip()
  def protect(self,mutation=False):
   host=self.headers.get('Host','')
-  if host not in [f'localhost:{self.server.server_port}',f'127.0.0.1:{self.server.server_port}', '127.0.0.1:5500', 'localhost:5500']: raise APIError('Invalid host.',403)
+  allowed=[urlsplit(self.server.public_origin).netloc] if self.server.public_origin else [f'localhost:{self.server.server_port}',f'127.0.0.1:{self.server.server_port}', '127.0.0.1:5500', 'localhost:5500']
+  if host not in allowed: raise APIError('Invalid host.',403)
   if mutation:
    origin=self.headers.get('Origin')
-   if origin and origin!=f'http://{host}': raise APIError('Cross-site requests are not allowed.',403)
+   if origin and origin!=(self.server.public_origin or f'http://{host}'): raise APIError('Cross-site requests are not allowed.',403)
    if self.headers.get('Sec-Fetch-Site')=='cross-site': raise APIError('Cross-site requests are not allowed.',403)
  def do_GET(self): self.dispatch('GET')
  def do_POST(self): self.dispatch('POST')
@@ -145,6 +146,7 @@ class Handler(BaseHTTPRequestHandler):
    import traceback; traceback.print_exc(); self.reply({'error':'Could not save this change. Please try again.'},500)
  def route(self,method):
   path=unquote(urlsplit(self.path).path)
+  if path=='/healthz' and method=='GET': return self.reply({'ok':True})
   if path=='/api/setup-state' and method=='GET': return self.reply(dict(needsSetup=self.app.setup(),authenticated=self.authorized()))
   if path in ['/api/setup','/api/register','/api/login'] and method=='POST':
    data=self.json_body(); username=self.text(data,'username',80,True); password=self.text(data,'password',200,True)
@@ -295,11 +297,15 @@ class Handler(BaseHTTPRequestHandler):
     if not chunk: break
     self.wfile.write(chunk); remaining-=len(chunk)
 
-def make_server(port=8787,data=None):
- server=ThreadingHTTPServer(('127.0.0.1',port),Handler); server.app=App(data or ROOT/'backend/data'); return server
+def make_server(port=8787,data=None,host='127.0.0.1',public_origin=''):
+ if public_origin:
+  parsed=urlsplit(public_origin)
+  if parsed.scheme!='https' or not parsed.netloc or parsed.path or parsed.query or parsed.fragment or parsed.username: raise ValueError('PUBLIC_ORIGIN must be an HTTPS origin without a path.')
+ server=ThreadingHTTPServer((host,port),Handler); server.public_origin=public_origin; server.app=App(data or ROOT/'backend/data'); return server
 if __name__=='__main__':
- parser=argparse.ArgumentParser(); parser.add_argument('--port',type=int,default=8787); parser.add_argument('--data-dir'); parser.add_argument('--open-browser',action='store_true'); args=parser.parse_args()
- server=make_server(args.port,args.data_dir); print(f'LoveFlix is running at http://localhost:{server.server_port}',flush=True)
+ parser=argparse.ArgumentParser(); parser.add_argument('--port',type=int,default=int(os.environ.get('PORT','8787'))); parser.add_argument('--host',default=os.environ.get('HOST','127.0.0.1')); parser.add_argument('--data-dir',default=os.environ.get('DATA_DIR')); parser.add_argument('--open-browser',action='store_true'); args=parser.parse_args()
+ public_origin=os.environ.get('PUBLIC_ORIGIN','') or ('https://'+os.environ['RENDER_EXTERNAL_HOSTNAME'] if os.environ.get('RENDER_EXTERNAL_HOSTNAME') else '')
+ server=make_server(args.port,args.data_dir,args.host,public_origin); print(f'LoveFlix is running at http://localhost:{server.server_port}',flush=True)
  if args.open_browser:
   import webbrowser
   threading.Timer(.5,lambda:webbrowser.open(f'http://localhost:{server.server_port}')).start()
