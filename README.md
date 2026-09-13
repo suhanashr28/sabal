@@ -36,3 +36,7 @@ Tests use a separate temporary database and do not change your memories. For a s
 ## VS Code Go Live
 
 Open this folder in VS Code and allow the automatic task when prompted. The task starts the Python backend. Click **Go Live** to use http://127.0.0.1:5500. Live Server forwards requests to the backend on port 8787. Keep the backend task running. If automatic tasks are disabled, use **Terminal → Run Task → Start LoveFlix backend**. Restart Live Server after changing its settings.
+
+## Vercel hosting
+
+See [VERCEL.md](VERCEL.md) for the Vercel + Supabase setup. The cloud adapter uses Postgres and private object storage; local development continues to use SQLite. Hosting accounts and environment settings must be connected before deployment.

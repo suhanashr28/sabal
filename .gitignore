@@ -2,3 +2,10 @@ backend/data/
 __pycache__/
 *.pyc
 .DS_Store
+
+.env
+.env.*
+!.env.example
+.vercel/
+.venv/
+public/

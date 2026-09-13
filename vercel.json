@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "python scripts/build_vercel.py",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{images/**,videos/**,play/*.mp4,birthday.mp4,backend/data/**,backend/tests/**,.git/**,.venv/**,work/**,.env,.env.*}"
+    }
+  },
+  "routes": [{"src": "/(.*)", "dest": "/api/index.py"}]
+}

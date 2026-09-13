@@ -17,6 +17,13 @@
   request.onerror=() => reject(Error('Upload interrupted. Check that the server is running.'));
   request.onload=() => { try { const result=JSON.parse(request.responseText); request.status<300 ? resolve(result) : reject(Error(result.error)); } catch { reject(Error('Upload failed. Please try again.')); } }; request.send(file);
  });
+ const localUpload=LF.upload;
+ LF.upload=async(file,collection,id,progress)=>{
+  if(!LF.state?.directUploads)return localUpload(file,collection,id,progress);
+  const prepared=await LF.save('/api/uploads/prepare','POST',{name:file.name,size:file.size,collection,id:id||''});
+  await new Promise((resolve,reject)=>{const request=new XMLHttpRequest();request.open('PUT',prepared.url);request.setRequestHeader('Content-Type',prepared.contentType);request.upload.onprogress=e=>{if(e.lengthComputable&&progress)progress(Math.round(e.loaded/e.total*100));};request.onerror=()=>reject(Error('Upload interrupted. Please try again.'));request.onload=()=>request.status>=200&&request.status<300?resolve():reject(Error('Storage could not accept this file. Please try again.'));request.send(file);});
+  return LF.save('/api/uploads/complete','POST',{id:prepared.id});
+ };
  LF.refresh = async () => { LF.state=await LF.api('/api/state'); document.dispatchEvent(new Event('lf-state')); return LF.state; };
  LF.media = id => LF.state.media.find(item => item.id===id);
  LF.favorite = item => {

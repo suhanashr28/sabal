@@ -88,6 +88,8 @@ class App:
 class Handler(BaseHTTPRequestHandler):
  server_version='LoveFlix'
  @property
+ def public_origin(self): return getattr(self.server,'public_origin','')
+ @property
  def app(self): return self.server.app
  def headers_common(self):
   self.send_header('X-Content-Type-Options','nosniff'); self.send_header('Referrer-Policy','same-origin'); self.send_header('X-Frame-Options','SAMEORIGIN'); self.send_header('Cache-Control','no-store')
@@ -105,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
   raw=secrets.token_urlsafe(32); duration=30*86400 if remember else 12*3600
   with self.app.db() as db:
    db.execute('DELETE FROM sessions WHERE expires<?',(time.time(),)); db.execute('INSERT INTO sessions VALUES(?,?)',(hashlib.sha256(raw.encode()).hexdigest(),time.time()+duration))
-  return f'lf_session={raw}; HttpOnly; SameSite=Strict; Path=/; Max-Age={duration}' + ('; Secure' if self.server.public_origin else '')
+  return f'lf_session={raw}; HttpOnly; SameSite=Strict; Path=/; Max-Age={duration}' + ('; Secure' if self.public_origin else '')
  def body(self,limit=1000000):
   try: size=int(self.headers.get('Content-Length','0'))
   except ValueError: raise APIError('Invalid upload size.')
@@ -125,11 +127,11 @@ class Handler(BaseHTTPRequestHandler):
   return value.strip()
  def protect(self,mutation=False):
   host=self.headers.get('Host','')
-  allowed=[urlsplit(self.server.public_origin).netloc] if self.server.public_origin else [f'localhost:{self.server.server_port}',f'127.0.0.1:{self.server.server_port}', '127.0.0.1:5500', 'localhost:5500']
+  allowed=[urlsplit(self.public_origin).netloc] if self.public_origin else [f'localhost:{self.server.server_port}',f'127.0.0.1:{self.server.server_port}', '127.0.0.1:5500', 'localhost:5500']
   if host not in allowed: raise APIError('Invalid host.',403)
   if mutation:
    origin=self.headers.get('Origin')
-   if origin and origin!=(self.server.public_origin or f'http://{host}'): raise APIError('Cross-site requests are not allowed.',403)
+   if origin and origin!=(self.public_origin or f'http://{host}'): raise APIError('Cross-site requests are not allowed.',403)
    if self.headers.get('Sec-Fetch-Site')=='cross-site': raise APIError('Cross-site requests are not allowed.',403)
  def do_GET(self): self.dispatch('GET')
  def do_POST(self): self.dispatch('POST')
