@@ -25,3 +25,10 @@ body #memory-photos.mixed-media-grid{display:grid;grid-template-columns:repeat(3
 body #memory-photos.mixed-media-grid>*,body #memory-photos.mixed-media-grid .lf-photo{min-width:0;margin:0}
 body #memory-photos.mixed-media-grid img,body #memory-photos.mixed-media-grid video{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:contain;background:#201e26;border-radius:8px;margin:0;max-height:none}
 @media(max-width:700px){body #memory-photos.mixed-media-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+
+.relationship-counter{position:relative;overflow:hidden;background:radial-gradient(ellipse at 0 0,#76274166,transparent 65%),linear-gradient(115deg,#30131f,#181218);border-color:#a34b6555;box-shadow:0 15px 55px #0003}
+.relationship-counter>div{flex:1;min-width:0}.relationship-counter .relationship-heart{color:#f38fa9;text-shadow:0 0 30px #ff6e9566;animation:love-heartbeat 2s ease-in-out infinite}
+.love-countdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:620px;margin:22px 0 16px}.love-countdown>div{padding:18px 10px;text-align:center;background:linear-gradient(150deg,#f49fbb15,#ffffff03);border:1px solid #f4a3bd33;border-radius:12px}.love-countdown strong{display:block;font-size:clamp(27px,4vw,48px);font-variant-numeric:tabular-nums;line-height:1.15;color:#ffe2ec}.love-countdown span{display:block;margin-top:8px;text-transform:uppercase;letter-spacing:2px;font-size:10px;color:#daa1b4}.love-live{display:flex;align-items:center;gap:8px;font-style:italic}.love-live>span{flex:none;width:6px;height:6px;border-radius:50%;background:#f59cb6;box-shadow:0 0 9px #f59cb6}
+@keyframes love-heartbeat{0%,100%{transform:scale(1)}15%{transform:scale(1.12)}30%{transform:scale(1)}45%{transform:scale(1.08)}60%{transform:scale(1)}}
+@media(max-width:600px){.relationship-counter{display:block}.relationship-counter .relationship-heart{display:block;font-size:38px;margin-bottom:16px;width:40px}.love-countdown{gap:6px}.love-countdown>div{padding:14px 4px}.love-countdown span{letter-spacing:1px}}
+@media(prefers-reduced-motion:reduce){.relationship-counter .relationship-heart{animation:none}}

@@ -150,3 +150,11 @@ header{
         font-size:28px;
     }
 }
+.input-group{position:relative}
+#login-password{padding-right:58px}
+.password-toggle{position:absolute;right:5px;top:5px;width:45px;height:45px;display:grid;place-items:center;border:0;border-radius:4px;color:#ddd;background:transparent;cursor:pointer}
+.password-toggle:hover{background:#ffffff18;color:#fff}
+.password-toggle:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.eye-slash[hidden]{display:none}
+
+.account-switch{background:none;border:0;color:#fff;font:inherit;cursor:pointer;text-align:left;text-decoration:underline;padding:8px 0}.account-switch:focus-visible{outline:2px solid #fff}
