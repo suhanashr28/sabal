@@ -24,9 +24,10 @@
   await new Promise((resolve,reject)=>{const request=new XMLHttpRequest();request.open('PUT',prepared.url);request.setRequestHeader('Content-Type',prepared.contentType);request.upload.onprogress=e=>{if(e.lengthComputable&&progress)progress(Math.round(e.loaded/e.total*100));};request.onerror=()=>reject(Error('Upload interrupted. Please try again.'));request.onload=()=>request.status>=200&&request.status<300?resolve():reject(Error('Storage could not accept this file. Please try again.'));request.send(file);});
   return LF.save('/api/uploads/complete','POST',{id:prepared.id});
  };
- LF.refresh = async () => { LF.state=await LF.api('/api/state'); document.dispatchEvent(new Event('lf-state')); return LF.state; };
+ LF.refresh = async () => { LF.state=await LF.api('/api/state'); LF.state.media.forEach(item=>{item.sourceUrl=item.url;item.url=item.displayUrl||item.url;}); document.dispatchEvent(new Event('lf-state')); return LF.state; };
  LF.media = id => LF.state.media.find(item => item.id===id);
  LF.favorite = item => {
+  if(item.id.startsWith('media:'))item={...item,image:item.image?`/media/${item.id.slice(6)}`:''};
   const button = LF.el('button','','lf-heart'); button.type='button';
   const sync = () => { const saved = LF.state.favorites[LF.profile()].some(x=>x.id===item.id); button.textContent=saved?'♥ Loved':'♡ Love'; button.setAttribute('aria-pressed',String(saved)); button.setAttribute('aria-label',`${saved?'Remove from':'Add to'} favorites: ${item.title}`); };
   button.onclick=async event => { event.preventDefault(); event.stopPropagation(); button.disabled=true; try { const saved=LF.state.favorites[LF.profile()].some(x=>x.id===item.id); await LF.save(`/api/favorites/${LF.profile()}`,saved?'DELETE':'PUT',item); LF.state.favorites[LF.profile()]=saved?LF.state.favorites[LF.profile()].filter(x=>x.id!==item.id):[...LF.state.favorites[LF.profile()],item]; document.dispatchEvent(new Event('lf-favorites')); LF.notify(saved?'Removed from favorites.':'Saved to favorites.'); } catch(error) { LF.notify(error.message); } finally {button.disabled=false;} };
@@ -75,14 +76,14 @@
  }
  function syncMedia() {
   const byOriginal=new Map(LF.state.media.filter(x=>x.original).map(x=>[x.original,x]));
-  document.querySelectorAll('img[src], video[src], video source[src]').forEach(node=> {
+  document.querySelectorAll('img[src], img[data-original], video[src], video source[src]').forEach(node=> {
    if(node.dataset.managed || node.closest('.lf-media-viewer, .lf-editor, #media-library, #saved-favorites, .lf-album'))return;
    const original=node.dataset.original || node.getAttribute('src')?.replace(/^\//,''); const item=byOriginal.get(original); if(!item)return;
    node.dataset.original=original;
    const target=node.tagName==='SOURCE'?node.parentElement:node;
    if(item.deleted){target.hidden=true;if(target.parentElement.classList.contains('lf-photo'))target.parentElement.hidden=true;return;}target.hidden=false;if(target.parentElement.classList.contains('lf-photo'))target.parentElement.hidden=false;
    if(node.getAttribute('src')!==item.url){node.src=item.url;if(node.tagName==='SOURCE')node.parentElement.load();}
-   if(node.tagName==='IMG')node.alt=item.title;
+   if(node.tagName==='IMG'){node.alt=item.title;node.decoding='async';if(node.closest('.memory-card'))node.loading='lazy';}
    if(node.tagName==='IMG'&&!node.closest('a,.lf-photo')) {
     const wrap=LF.el('div','','lf-photo'); node.before(wrap);wrap.append(node,LF.favorite({id:`media:${item.id}`,title:item.title,href:`gallery.html?media=${item.id}`,image:item.url}));
     const edit=LF.el('button','Edit photo','lf-inline-edit');edit.onclick=()=>LF.editMedia(item);wrap.append(edit);
@@ -102,7 +103,7 @@
   if(location.pathname.endsWith('login.html'))return;
   try {
    await LF.refresh(); LF.render();
-   document.querySelectorAll('.memory-card').forEach(card=> {const href=card.getAttribute('href'),title=card.querySelector('strong')?.textContent||'Our memory';const wrap=LF.el('div','','lf-memory');card.before(wrap);wrap.append(card,LF.favorite({id:`memory:${href}`,title,href,image:card.querySelector('img')?.getAttribute('src')||''}));});
+   document.querySelectorAll('.memory-card').forEach(card=> {const href=card.getAttribute('href'),title=card.querySelector('strong')?.textContent||'Our memory';const wrap=LF.el('div','','lf-memory');card.before(wrap);wrap.append(card,LF.favorite({id:`memory:${href}`,title,href,image:card.querySelector('img')?.dataset.original||''}));});
    if(!['home.html','settings.html','profile.html','watch.html','favorites.html','login.html','index.html'].includes(location.pathname.split('/').pop())) {const heading=document.querySelector('main h1');if(heading)heading.after(LF.favorite({id:`page:${LF.page()}`,title:heading.textContent,href:LF.page(),image:''}));}
    const requested=new URLSearchParams(location.search).get('media');if(requested){const item=LF.media(requested);if(item&&!item.deleted)LF.openMedia(item);}
    document.dispatchEvent(new Event('lf-ready'));

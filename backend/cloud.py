@@ -56,7 +56,17 @@ class CloudApp(App):
             connection.execute('SET LOCAL search_path TO loveflix')
             yield Database(connection)
 
+    def media(self, row):
+        result = super().media(row)
+        result['displayUrl'] = self.signed_read(row['path']) if not row['deleted'] else ''
+        return result
+
     def signed_read(self, path):
+        # Reuse URLs long enough for browser caching, well inside their expiry.
+        return self._signed_read(path, int(time.time() // 900))
+
+    @lru_cache(maxsize=2048)
+    def _signed_read(self, path, window):
         return self.storage.generate_presigned_url('get_object', Params={'Bucket':self.bucket,'Key':path}, ExpiresIn=3600)
 
 @lru_cache(maxsize=1)

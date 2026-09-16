@@ -9,5 +9,5 @@ function replaceBrokenImage(image) {
 
 document.querySelectorAll('img').forEach((image) => {
     image.addEventListener('error', () => replaceBrokenImage(image));
-    if (image.complete && image.naturalWidth === 0) replaceBrokenImage(image);
+    if (image.hasAttribute('src') && image.complete && image.naturalWidth === 0) replaceBrokenImage(image);
 });

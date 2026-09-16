@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 from backend.server import App
-from backend.cloud import CloudHandler, Database, Row
+from backend.cloud import CloudHandler, CloudApp, Database, Row
 
 PNG=bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000b49444154789c636000020000050001a5f645400000000049454e44ae426082')
 class Storage:
@@ -34,6 +34,15 @@ class TestApp(App):
  def signed_read(self,path):return self.storage.generate_presigned_url('get_object',{'Bucket':self.bucket,'Key':path},3600)
 
 class CloudTests(unittest.TestCase):
+ def test_direct_media_keeps_stable_saved_url(self):
+  app=object.__new__(CloudApp);app.storage=Storage();app.bucket='private-test'
+  row={'id':'photo','path':'images/photo.jpeg','collections':'[]','revision':1,'deleted':0}
+  first=app.media(row);second=app.media(row)
+  self.assertEqual(first['url'],'/media/photo?v=1')
+  self.assertEqual(first['displayUrl'],second['displayUrl'])
+  self.assertEqual(len(app.storage.requests),1)
+  self.assertNotIn('path',first)
+
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.app=TestApp(self.temp.name);self.app.storage=Storage();self.app.bucket='private-test'
   with self.app.db() as db:

@@ -16,12 +16,17 @@
       photo.setAttribute('role', 'button');
       photo.setAttribute('aria-label', `Expand photo: ${photo.alt || 'Our memory'}`);
       photo.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); photo.click(); } });
-      photo.addEventListener('click', () => {
+      photo.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
         image.src = photo.currentSrc || photo.src;
         image.alt = photo.alt || 'Expanded photo';
         viewer.classList.add('open');
         document.body.style.overflow = 'hidden';
       });
+    });
+    document.querySelectorAll('.home-page .memory-card').forEach(card => {
+      card.addEventListener('click', event => {event.preventDefault();card.querySelector('img')?.click();});
     });
   });
   viewer.addEventListener('click', (event) => { if (event.target === viewer || event.target.tagName === 'BUTTON') close(); });
