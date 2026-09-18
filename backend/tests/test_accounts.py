@@ -1,43 +1,58 @@
+import hashlib
 import http.client
-import importlib.util
 import json
 import tempfile
 import threading
+import time
 import unittest
-from pathlib import Path
-spec=importlib.util.spec_from_file_location('account_server',Path(__file__).resolve().parents[1]/'server.py')
-m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+from unittest.mock import patch
+from backend.server import make_server
 
 class AccountTests(unittest.TestCase):
- def test_existing_owner_and_new_accounts(self):
-  with tempfile.TemporaryDirectory() as directory:
-   app=m.App(directory)
-   salt='ab'*16
-   password='original-password'
-   digest=m.hashlib.scrypt(password.encode(),salt=bytes.fromhex(salt),n=16384,r=8,p=1).hex()
-   with app.db() as db:
-    db.execute('DROP TABLE users')
-    db.execute('CREATE TABLE users(id INTEGER PRIMARY KEY CHECK(id=1),username TEXT NOT NULL,salt TEXT NOT NULL,password TEXT NOT NULL)')
-    db.execute('INSERT INTO users VALUES(1,?,?,?)',('owner',salt,digest))
-   server=m.make_server(0,directory)
-   thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-   def request(path,data=None,cookie=None):
-    c=http.client.HTTPConnection('127.0.0.1',server.server_port)
-    headers={'Content-Type':'application/json'}
-    if cookie: headers['Cookie']=cookie
-    c.request('POST' if data is not None else 'GET',path,json.dumps(data) if data is not None else None,headers)
-    r=c.getresponse();result=(r.status,r.getheader('Set-Cookie'),r.read());c.close();return result
-   try:
-    self.assertEqual(request('/api/login',{'username':'owner','password':password})[0],200)
-    self.assertEqual(request('/api/register',{'username':'friend','password':'short'})[0],400)
-    credentials={'username':'friend','password':'friend-password'}
-    status,cookie,_=request('/api/register',credentials);self.assertEqual(status,200)
-    self.assertEqual(request('/api/state',cookie=cookie.split(';')[0])[0],200)
-    self.assertEqual(request('/api/register',credentials)[0],409)
-    self.assertEqual(request('/api/login',credentials)[0],200)
-    self.assertEqual(request('/api/login',{'username':'friend','password':password})[0],401)
-    self.assertEqual(request('/api/login',{'username':'missing','password':password})[0],401)
-    self.assertEqual(request('/api/state')[0],401)
-    m.App(directory)
-    with app.db() as db:self.assertEqual(db.execute('SELECT count(*) FROM users').fetchone()[0],2)
-   finally:server.shutdown();server.server_close();thread.join()
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory();self.server=make_server(0,self.tmp.name)
+  self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
+ def tearDown(self):
+  self.server.shutdown();self.server.server_close();self.thread.join();self.tmp.cleanup()
+ def request(self,path,data=None,cookie=''):
+  conn=http.client.HTTPConnection('127.0.0.1',self.server.server_port)
+  headers={'Host':f'localhost:{self.server.server_port}','Content-Type':'application/json'}
+  if cookie:headers['Cookie']=cookie
+  conn.request('POST' if data is not None else 'GET',path,json.dumps(data) if data is not None else None,headers)
+  response=conn.getresponse();raw=response.read();result=(response.status,json.loads(raw) if raw else {},dict(response.getheaders()));conn.close();return result
+ def register(self):
+  return self.request('/api/accounts/register',{'name':'Test Person','email':'Person@Example.com','phone':'+977 9800000000','password':'first-password-123'})
+ def test_registration_then_login_and_private_details(self):
+  status,body,headers=self.register();self.assertEqual(status,200);self.assertNotIn('Set-Cookie',headers)
+  self.assertEqual(self.register()[0],409)
+  with self.server.app.db() as db:
+   row=db.execute('SELECT * FROM account_details').fetchone();self.assertEqual(row['email'],'person@example.com');self.assertEqual(row['name'],'Test Person')
+  result=self.request('/api/accounts/login',{'identity':'PERSON@example.com','password':'first-password-123'})
+  self.assertEqual(result[0],200)
+  state=self.request('/api/state',cookie=result[2]['Set-Cookie'].split(';')[0]);self.assertEqual(state[0],200);self.assertNotIn('person@example.com',json.dumps(state[1]))
+  root=self.request('/');self.assertEqual(root[2]['Location'],'/login.html?mode=register')
+ def test_recovery_is_single_use_and_revokes_sessions(self):
+  self.register();login=self.request('/api/accounts/login',{'identity':'person@example.com','password':'first-password-123'});cookie=login[2]['Set-Cookie'].split(';')[0]
+  with patch('backend.accounts.mail_configured',return_value=True),patch('backend.accounts.send_reset') as sender:
+   known=self.request('/api/accounts/forgot',{'email':'person@example.com'})
+   unknown=self.request('/api/accounts/forgot',{'email':'missing@example.com'})
+   self.assertEqual(known[:2],unknown[:2]);self.assertEqual(sender.call_count,1);token=sender.call_args.args[1]
+  with self.server.app.db() as db:
+   row=db.execute('SELECT token FROM password_resets').fetchone();self.assertEqual(row['token'],hashlib.sha256(token.encode()).hexdigest())
+  payload={'token':token,'password':'second-password-456'}
+  self.assertEqual(self.request('/api/accounts/reset',payload)[0],200)
+  self.assertEqual(self.request('/api/accounts/reset',payload)[0],400)
+  self.assertEqual(self.request('/api/state',cookie=cookie)[0],401)
+  self.assertEqual(self.request('/api/accounts/login',{'identity':'person@example.com','password':'first-password-123'})[0],401)
+  self.assertEqual(self.request('/api/accounts/login',{'identity':'person@example.com','password':'second-password-456'})[0],200)
+ def test_invalid_expired_and_unconfigured_recovery(self):
+  self.assertEqual(self.request('/api/accounts/register',{'name':'Test','email':'bad','phone':'123','password':'short'})[0],400)
+  self.register()
+  with patch('backend.accounts.mail_configured',return_value=False):self.assertEqual(self.request('/api/accounts/forgot',{'email':'person@example.com'})[0],503)
+  with self.server.app.db() as db:
+   uid=db.execute('SELECT id FROM users').fetchone()['id'];db.execute('INSERT INTO password_resets VALUES(?,?,?)',(hashlib.sha256(b'expired').hexdigest(),uid,time.time()-1))
+  self.assertEqual(self.request('/api/accounts/reset',{'token':'expired','password':'long-password-123'})[0],400)
+ def test_recovery_rate_limit(self):
+  with patch('backend.accounts.mail_configured',return_value=True):
+   for _ in range(3):self.assertEqual(self.request('/api/accounts/forgot',{'email':'unknown@example.com'})[0],200)
+   self.assertEqual(self.request('/api/accounts/forgot',{'email':'unknown@example.com'})[0],429)

@@ -1,15 +1,40 @@
-(async()=>{
- const form=document.querySelector('form'),heading=document.querySelector('.login-box h2'),submit=form.querySelector('button[type=submit]');
- const username=form.querySelector('input[type=text]'),password=form.querySelector('input[type=password]'),remember=form.querySelector('input[type=checkbox]');
- const toggle=form.querySelector('.password-toggle');
- toggle.addEventListener('click',()=>{const visible=password.type==='password';password.type=visible?'text':'password';toggle.setAttribute('aria-label',visible?'Hide password':'Show password');toggle.setAttribute('aria-pressed',String(visible));toggle.querySelector('.eye-slash').toggleAttribute('hidden',!visible);});
- username.name='username';username.autocomplete='username';username.setAttribute('aria-label','Username');password.name='password';password.setAttribute('aria-label','Password');
- const status=document.createElement('p');status.setAttribute('role','status');status.style.color='#ffb3c0';form.append(status);submit.disabled=true;
- let registering=false;
- const signup=document.querySelector('.signup');
- const switchMode=document.createElement('button');switchMode.type='button';switchMode.className='account-switch';signup.replaceChildren(switchMode);
- function renderMode(){heading.textContent=registering?'Create your account':'Sign In';submit.textContent=registering?'Create account':'Sign In';password.autocomplete=registering?'new-password':'current-password';password.minLength=registering?10:1;switchMode.textContent=registering?'Already have an account? Sign in':'New to LoveFlix? Create account';document.querySelector('.note').textContent=registering?'Use at least 10 characters for your password. All accounts share this site’s memories, profiles, and editing access.':'Sign in with your own account to open our shared memories.';status.textContent='';}
- switchMode.onclick=()=>{registering=!registering;password.value='';renderMode();};
- try{const state=await LF.api('/api/setup-state');registering=state.needsSetup;renderMode();document.querySelector('.options a')?.remove();submit.disabled=false;}catch(error){status.textContent='Start the LoveFlix server with npm start, then refresh this page.';switchMode.disabled=true;}
- form.onsubmit=async event=>{event.preventDefault();submit.disabled=true;switchMode.disabled=true;status.textContent='';try{await LF.save(registering?'/api/register':'/api/login','POST',{username:username.value,password:password.value,remember:remember.checked});location.href='/profile.html';}catch(error){status.textContent=error.message;}finally{submit.disabled=false;switchMode.disabled=false;}};
+(() => {
+ const params=new URLSearchParams(location.search);
+ let mode=['register','forgot','reset'].includes(params.get('mode'))?params.get('mode'):'login';
+ const token=new URLSearchParams(location.hash.slice(1)).get('token')||'';
+ if(token)history.replaceState(null,'',location.pathname+'?mode=reset');
+ const form=document.getElementById('account-form'),heading=document.getElementById('account-title'),status=document.getElementById('account-status'),submit=document.getElementById('account-submit');
+ const fields={name:form.elements.name,email:form.elements.email,phone:form.elements.phone,identity:form.elements.identity,password:form.elements.password,confirm:form.elements.confirm};
+ const routes={register:['name','email','phone','password','confirm'],login:['identity','password'],forgot:['email'],reset:['password','confirm']};
+ const titles={register:'Create your account',login:'Log in',forgot:'Forgot password?',reset:'Choose a new password'};
+ const labels={register:'Create account',login:'Log in',forgot:'Send reset link',reset:'Save new password'};
+ function render(){
+  heading.textContent=titles[mode];submit.textContent=labels[mode];document.title=titles[mode]+' — LoveFlix';
+  Object.entries(fields).forEach(([key,input])=>{const visible=routes[mode].includes(key);input.closest('.input-group').hidden=!visible;input.disabled=!visible;input.required=visible;});
+  fields.password.minLength=mode==='login'?1:10;fields.password.autocomplete=mode==='login'?'current-password':'new-password';
+  document.getElementById('remember-row').hidden=mode!=='login';document.getElementById('forgot-link').hidden=mode!=='login';
+  document.getElementById('login-link').hidden=mode==='login';document.getElementById('register-link').hidden=mode!=='login';
+  document.getElementById('register-note').hidden=mode!=='register';
+  if(mode==='reset'&&!token){status.textContent='This reset link is incomplete. Please request a new link.';submit.disabled=true;}
+  if(mode==='login'&&params.get('created'))status.textContent='Account created. Log in with your email and password.';
+ }
+ document.querySelectorAll('.password-toggle').forEach(button=>button.addEventListener('click',()=>{const input=document.getElementById(button.getAttribute('aria-controls'));const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show';button.setAttribute('aria-label',show?'Hide password':'Show password');button.setAttribute('aria-pressed',String(show));}));
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();status.textContent='';
+  if((mode==='register'||mode==='reset')&&fields.password.value!==fields.confirm.value){status.textContent='Passwords do not match.';fields.confirm.focus();return;}
+  submit.disabled=true;
+  try{
+   const data=Object.fromEntries(routes[mode].map(key=>[key,fields[key].value]));delete data.confirm;
+   if(mode==='reset')data.token=token;
+   if(mode==='login')data.remember=form.elements.remember.checked;
+   const response=await fetch('/api/accounts/'+mode,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+   const result=await response.json();if(!response.ok)throw Error(result.error||'Please try again.');
+   if(mode==='register'){location.assign('/login.html?created=1');return;}
+   if(mode==='login'){location.assign('/profile.html');return;}
+   if(mode==='reset'){fields.password.value='';fields.confirm.value='';status.textContent='Password updated. You can now log in.';submit.hidden=true;return;}
+   status.textContent=result.message;
+  }catch(error){status.textContent=error.message==='Failed to fetch'?'Unable to connect. Check your internet connection and try again.':error.message;}
+  finally{submit.disabled=false;}
+ });
+ render();
 })();

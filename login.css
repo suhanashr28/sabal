@@ -158,3 +158,4 @@ header{
 .eye-slash[hidden]{display:none}
 
 .account-switch{background:none;border:0;color:#fff;font:inherit;cursor:pointer;text-align:left;text-decoration:underline;padding:8px 0}.account-switch:focus-visible{outline:2px solid #fff}
+[hidden]{display:none!important}.logo{text-decoration:none}.login-box h1{color:white;font-size:30px;margin-bottom:26px}.login-container{padding-bottom:40px}.input-group label{display:block;color:#ddd;font-size:13px;margin-bottom:7px}.password-field{position:relative}.password-field input{padding-right:64px}.password-toggle{font-size:12px;width:52px}.signup{margin-top:24px}.options{gap:16px;flex-wrap:wrap}#account-status{color:#ffc4ce;font-size:14px;line-height:1.5;margin:12px 0}.input-group input:focus{outline:2px solid #f79aa9;outline-offset:2px}.login-btn:disabled{opacity:.6;cursor:wait}

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """LoveFlix local server. Python 3.11+, no third-party dependencies."""
 from contextlib import contextmanager
+import sys
 import argparse, datetime as dt, hashlib, hmac, json, mimetypes, os, re, secrets, sqlite3, threading, time
 from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -9,10 +10,11 @@ from urllib.parse import urlsplit, unquote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
+if __name__=='__main__': sys.modules['backend.server']=sys.modules[__name__]
 COLLECTIONS = ['gallery','first-date','story-begins','best-part','favorite','birthday','family','airport','nagarkot','videos','play']
 MAX_UPLOAD = 250 * 1024 * 1024
-class APIError(Exception):
- def __init__(self, message, status=400): self.message, self.status = message, status
+from backend.errors import APIError
 
 def counter(settings, now=None):
  zone = ZoneInfo(settings['timezone'])
@@ -47,6 +49,8 @@ class App:
     db.execute('CREATE TABLE users(id INTEGER PRIMARY KEY,username TEXT NOT NULL UNIQUE,salt TEXT NOT NULL,password TEXT NOT NULL)')
     db.execute('INSERT INTO users SELECT * FROM legacy_users')
     db.execute('DROP TABLE legacy_users')
+   from backend.accounts import ensure_schema
+   ensure_schema(db)
    db.execute('INSERT OR IGNORE INTO settings VALUES(1,?)',(json.dumps(dict(start_date='2023-04-27',timezone='Asia/Kathmandu')),))
    db.executemany('INSERT OR IGNORE INTO profiles(id,name) VALUES(?,?)',[('my','My Profile'),('sabal','Sabal')])
    seeded = db.execute('SELECT count(*) FROM media').fetchone()[0]
@@ -103,10 +107,11 @@ class Handler(BaseHTTPRequestHandler):
   except cookies.CookieError: return ''
  def authorized(self):
   with self.app.db() as db: return db.execute('SELECT 1 FROM sessions WHERE token=? AND expires>?',(self.token(),time.time())).fetchone() is not None
- def session(self,remember=False):
+ def session(self,remember=False,user_id=None):
   raw=secrets.token_urlsafe(32); duration=30*86400 if remember else 12*3600
   with self.app.db() as db:
    db.execute('DELETE FROM sessions WHERE expires<?',(time.time(),)); db.execute('INSERT INTO sessions VALUES(?,?)',(hashlib.sha256(raw.encode()).hexdigest(),time.time()+duration))
+   if user_id is not None: db.execute('INSERT INTO account_sessions(token,user_id) VALUES(?,?)',(hashlib.sha256(raw.encode()).hexdigest(),user_id))
   return f'lf_session={raw}; HttpOnly; SameSite=Strict; Path=/; Max-Age={duration}' + ('; Secure' if self.public_origin else '')
  def body(self,limit=1000000):
   try: size=int(self.headers.get('Content-Length','0'))
@@ -148,6 +153,11 @@ class Handler(BaseHTTPRequestHandler):
    import traceback; traceback.print_exc(); self.reply({'error':'Could not save this change. Please try again.'},500)
  def route(self,method):
   path=unquote(urlsplit(self.path).path)
+  if path in ['/','/index.html'] and method in ['GET','HEAD']:
+   self.send_response(302); self.send_header('Location','/login.html?mode=register'); self.send_header('Content-Length','0'); self.end_headers(); return
+  if path.startswith('/api/accounts/') and method=='POST':
+   from backend.accounts import handle
+   return handle(self,path)
   if path=='/healthz' and method=='GET': return self.reply({'ok':True})
   if path=='/api/setup-state' and method=='GET': return self.reply(dict(needsSetup=self.app.setup(),authenticated=self.authorized()))
   if path in ['/api/setup','/api/register','/api/login'] and method=='POST':
@@ -171,7 +181,8 @@ class Handler(BaseHTTPRequestHandler):
     digest=hashlib.scrypt(password.encode(),salt=bytes.fromhex(user['salt']),n=16384,r=8,p=1).hex()
     if not hmac.compare_digest(digest,user['password']) or not hmac.compare_digest(username.encode(),user['username'].encode()): raise APIError('Username or password is incorrect.',401)
     with self.app.lock: self.app.attempts.pop(ip,None)
-   return self.reply({'ok':True},cookie=self.session(bool(data.get('remember'))))
+   with self.app.db() as db: account=db.execute('SELECT id FROM users WHERE username=?',(username,)).fetchone()
+   return self.reply({'ok':True},cookie=self.session(bool(data.get('remember')),account['id']))
   if path.startswith('/api/') or path.startswith('/media/'):
    if not self.authorized(): raise APIError('Please sign in.',401)
   if path=='/api/logout' and method=='POST':

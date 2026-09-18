@@ -47,6 +47,10 @@ class CloudApp(App):
             aws_access_key_id=os.environ['S3_ACCESS_KEY_ID'], aws_secret_access_key=os.environ['S3_SECRET_ACCESS_KEY'],
             config=Config(signature_version='s3v4', s3={'addressing_style':'path'}, request_checksum_calculation='when_required', response_checksum_validation='when_required'))
 
+        from .accounts import ensure_schema
+        with self.db() as db:
+            ensure_schema(db)
+
     @contextmanager
     def db(self):
         import psycopg
@@ -191,7 +195,9 @@ class CloudHandler(Handler):
                 raise APIError('Username or password is incorrect.',401)
         with self.app.db() as db:
             db.execute('DELETE FROM login_attempts WHERE key=?',(key,))
-        return self.reply({'ok':True},cookie=self.session(bool(data.get('remember'))))
+        with self.app.db() as db:
+            account=db.execute('SELECT id FROM users WHERE username=?',(username,)).fetchone()
+        return self.reply({'ok':True},cookie=self.session(bool(data.get('remember')),account['id']))
 
     def upload(self, mid=None):
         raise APIError('Refresh the page to enable direct uploads.',400)

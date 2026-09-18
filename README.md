@@ -40,3 +40,11 @@ Open this folder in VS Code and allow the automatic task when prompted. The task
 ## Vercel hosting
 
 See [VERCEL.md](VERCEL.md) for the Vercel + Supabase setup. The cloud adapter uses Postgres and private object storage; local development continues to use SQLite. Hosting accounts and environment settings must be connected before deployment.
+
+## Account signup and password recovery
+
+The root link opens Create account. Registration requires a name, email, phone number, and a password of at least 10 characters; it redirects to login without signing in automatically. Existing usernames continue to work. Contact details are stored privately and are not included in the shared site data.
+
+Password recovery requires the following Vercel environment variables: `PUBLIC_ORIGIN` (the HTTPS production origin), `SMTP_HOST`, `SMTP_PORT` (587 for STARTTLS or 465 for TLS), `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` (a sender authorized by the email provider). Store credentials only in Vercel environment settings, then redeploy. Never commit them. Without these settings the recovery page reports that email delivery is not configured.
+
+Reset links expire after 30 minutes, work once, and invalidate linked sessions. The reset token is stored only as a hash. Legacy accounts created without an email cannot receive recovery links; they can continue logging in with their existing username.

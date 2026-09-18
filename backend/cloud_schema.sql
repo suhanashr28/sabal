@@ -13,3 +13,8 @@ CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires);
 CREATE INDEX IF NOT EXISTS pending_expiry ON pending_uploads(expires);
 -- This schema is used only through the authenticated Python backend.
 REVOKE ALL ON SCHEMA loveflix FROM PUBLIC;
+
+CREATE TABLE IF NOT EXISTS account_details(user_id BIGINT PRIMARY KEY REFERENCES users(id),name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,phone TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS password_resets(token TEXT PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES users(id),expires DOUBLE PRECISION NOT NULL);
+CREATE TABLE IF NOT EXISTS account_sessions(token TEXT PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES users(id));
+CREATE TABLE IF NOT EXISTS auth_requests(key TEXT PRIMARY KEY,started DOUBLE PRECISION NOT NULL,attempts INTEGER NOT NULL);
