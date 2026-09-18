@@ -9,5 +9,16 @@
       "excludeFiles": "{images/**,videos/**,play/*.mp4,birthday.mp4,backend/data/**,backend/tests/**,.git/**,.venv/**,work/**,.env,.env.*}"
     }
   },
-  "routes": [{"src": "/(.*)", "dest": "/api/index.py"}]
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
+    }
+  ],
+  "regions": [
+    "sin1"
+  ]
 }
