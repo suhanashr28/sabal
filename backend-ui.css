@@ -2,3 +2,12 @@
 .lf-album .lf-photo>img{display:block;width:100%;height:100%;object-fit:contain}.lf-album .lf-photo>video{width:100%;height:auto;aspect-ratio:3/4;object-fit:contain;background:#111}.lf-album .lf-photo{min-width:0}.lf-album .lf-inline-edit{font-size:11px;padding:4px 7px}.lf-album .lf-photo>img{cursor:zoom-in}
 
 .lf-photo[hidden]{display:none!important}
+
+/* Small Polaroids inside memory albums; homepage cards retain their original style. */
+body .lf-album.lf-polaroid-album,body #memory-photos.lf-polaroid-album.mixed-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,170px));gap:20px;justify-content:center;width:100%;margin:24px 0}
+body .lf-polaroid-album>.lf-photo{height:auto;padding:9px 9px 13px;background:#f8f3e9;border-radius:2px;box-shadow:0 5px 16px #0005;overflow:hidden}
+body .lf-album.lf-polaroid-album>.lf-photo>img,body .lf-album.lf-polaroid-album>.lf-photo>video{display:block;position:static;width:100%;height:150px;aspect-ratio:auto;object-fit:cover;border-radius:0;margin:0;background:#ddd3cc;transform:none}
+body .lf-polaroid-album>.lf-photo>.lf-heart{position:static;display:block;margin:10px auto 0;padding:5px 10px;font-size:11px;background:transparent;color:#6d3745;border-color:#c8a7ae}
+body .lf-polaroid-album>.lf-photo>.lf-heart[aria-pressed=true]{background:#8c1022;color:white}
+body .lf-polaroid-album>.lf-photo>.lf-inline-edit{top:14px;left:14px;font-size:10px;padding:3px 6px}
+@media(max-width:380px){body .lf-album.lf-polaroid-album,body #memory-photos.lf-polaroid-album.mixed-media-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}body .lf-album.lf-polaroid-album>.lf-photo>img,body .lf-album.lf-polaroid-album>.lf-photo>video{height:125px}}

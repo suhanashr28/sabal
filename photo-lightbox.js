@@ -9,7 +9,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.body.append(viewer);
     document.querySelectorAll('img').forEach((photo) => {
-      if (photo.closest('.photo-lightbox, .photo-viewer, .profile-card') || photo.id === 'profile-preview') return;
+      if (photo.closest('.photo-lightbox, .photo-viewer, .profile-card, .memory-card') || photo.id === 'profile-preview') return;
       if (photo.closest('.gallery') && document.querySelector('.photo-viewer')) return;
       photo.classList.add('click-to-expand');
       photo.tabIndex = 0;
@@ -24,9 +24,6 @@
         viewer.classList.add('open');
         document.body.style.overflow = 'hidden';
       });
-    });
-    document.querySelectorAll('.home-page .memory-card').forEach(card => {
-      card.addEventListener('click', event => {event.preventDefault();card.querySelector('img')?.click();});
     });
   });
   viewer.addEventListener('click', (event) => { if (event.target === viewer || event.target.tagName === 'BUTTON') close(); });
