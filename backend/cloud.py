@@ -214,7 +214,7 @@ class CloudHandler(Handler):
         if ext not in ['.jpg','.jpeg','.png','.webp','.gif','.mp4','.webm','.mov'] or group not in COLLECTIONS+['profile']:
             raise APIError('Choose a supported file and album.')
         kind='video' if ext in ['.mp4','.webm','.mov'] else 'photo'
-        if (group=='videos' and kind!='video') or (group=='profile' and kind!='photo'):
+        if (group in ['videos','surprise'] and kind!='video') or (group=='profile' and kind!='photo'):
             raise APIError('Choose the correct file type for this album.')
         if group=='play' and not mid:
             raise APIError('Use Replace file on the Play movie.')

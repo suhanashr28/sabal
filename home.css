@@ -16,3 +16,5 @@
 .home-page .relationship-counter h2{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:clamp(27px,3vw,38px);font-weight:400;line-height:1.25}
 @media(max-width:850px){.home-page .hero-content{width:52%}.home-page .hero h2{font-size:clamp(34px,5.3vw,48px)}.home-page .description{font-size:15px}}
 @media(max-width:520px){.home-page .hero-content{width:100%;max-width:360px}.home-page .hero h2{font-size:clamp(38px,10vw,50px);letter-spacing:-1px}.home-page .series{font-size:9px;letter-spacing:1.6px}}
+
+.hero-buttons{flex-wrap:wrap}.hero-buttons .surprise-btn{border:1px solid #ffffff55;border-radius:5px;padding:12px 25px;color:#fff;background:#6d6d6eb8;font:600 14px Arial,Helvetica,sans-serif;letter-spacing:.2px;cursor:pointer}.hero-buttons .surprise-btn:hover{background:#777}.hero-buttons .surprise-btn:focus-visible{outline:2px solid white;outline-offset:4px}

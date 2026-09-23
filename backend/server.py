@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
 if __name__=='__main__': sys.modules['backend.server']=sys.modules[__name__]
-COLLECTIONS = ['gallery','first-date','story-begins','best-part','favorite','birthday','family','airport','nagarkot','videos','play']
+COLLECTIONS = ['gallery','first-date','story-begins','best-part','favorite','birthday','family','airport','nagarkot','videos','play','surprise']
 MAX_UPLOAD = 250 * 1024 * 1024
 from backend.errors import APIError
 
@@ -272,7 +272,7 @@ class Handler(BaseHTTPRequestHandler):
   data=self.body(MAX_UPLOAD); head=data[:32]; kind='video' if ext in ['.mp4','.webm','.mov'] else 'photo'
   valid=(ext in ['.jpg','.jpeg'] and head.startswith(b'\xff\xd8\xff')) or (ext=='.png' and head.startswith(b'\x89PNG\r\n\x1a\n')) or (ext=='.gif' and head[:6] in [b'GIF87a',b'GIF89a']) or (ext=='.webp' and head[:4]==b'RIFF' and head[8:12]==b'WEBP') or (ext in ['.mp4','.mov'] and b'ftyp' in head) or (ext=='.webm' and head.startswith(b'\x1aE\xdf\xa3'))
   if not valid: raise APIError('This file does not match its media type.')
-  if group=='videos' and kind!='video': raise APIError('Choose a video for the Video Library.')
+  if group in ['videos','surprise'] and kind!='video': raise APIError('Choose a video for the Video Library.')
   if group=='profile' and kind!='photo': raise APIError('Choose a photo for your profile.')
   if mid:
    with self.app.db() as db: row=db.execute('SELECT * FROM media WHERE id=?',(mid,)).fetchone()

@@ -1,13 +1,13 @@
 (() => {
  const LF=window.LF, el=LF.el;
- const labels={'gallery':'Gallery','first-date':'Our First Date','story-begins':'Our Story Begins','best-part':'The Best Part','favorite':'Favorite Photos','birthday':'Birthday','family':'Family','airport':'Airport','nagarkot':'Nagarkot','videos':'Video Library','play':'Home Play Movie'};
+ const labels={'gallery':'Gallery','first-date':'Our First Date','story-begins':'Our Story Begins','best-part':'The Best Part','favorite':'Favorite Photos','birthday':'Birthday','family':'Family','airport':'Airport','nagarkot':'Nagarkot','videos':'Video Library','play':'Home Play Movie','surprise':'Surprise Video'};
  function button(text,action){const b=el('button',text,'lf-action');b.type='button';b.onclick=action;return b;}
  function field(form,label,type='text',value=''){const wrap=el('label',label,'lf-field'),input=el(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;input.value=value;wrap.append(input);form.append(wrap);return input;}
  function dialog(title){const modal=el('dialog','','lf-editor'),heading=el('h2',title),close=button('Close',()=>modal.close());close.classList.add('lf-dialog-close');modal.append(heading,close);document.body.append(modal);modal.addEventListener('close',()=>modal.remove());modal.showModal();return modal;}
  async function refresh(){await LF.refresh();LF.render();renderLibrary();}
  LF.addMedia=collection=>{
-  const modal=dialog('Add photos or videos');const form=el('form');modal.append(form);const input=field(form,'Choose files','file');input.accept='image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime';input.multiple=true;input.required=true;
-  const select=el('select');for(const [id,label] of Object.entries(labels))if(id!=='play'){const option=el('option',label);option.value=id;select.append(option);}select.value=collection||'gallery';const wrap=el('label','Album','lf-field');wrap.append(select);form.append(wrap);
+  const modal=dialog(collection==='surprise'?'Add your surprise video':'Add photos or videos');const form=el('form');modal.append(form);const input=field(form,'Choose files','file');input.accept='image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime';input.multiple=true;input.required=true;
+  const select=el('select');for(const [id,label] of Object.entries(labels))if(id!=='play'){const option=el('option',label);option.value=id;select.append(option);}select.value=collection||'gallery';if(collection==='surprise'){input.accept='video/mp4,video/webm,video/quicktime';input.multiple=false;select.disabled=true;}const wrap=el('label','Album','lf-field');wrap.append(select);form.append(wrap);
   const status=el('p');status.setAttribute('role','status');const save=button('Upload');save.type='submit';form.append(save,status);
   form.onsubmit=async event=>{event.preventDefault();save.disabled=true;input.disabled=true;let completed=0;try{for(const file of input.files){status.textContent=`Uploading ${file.name}…`;await LF.upload(file,select.value,null,p=>status.textContent=`${file.name}: ${p}%`);completed++;}await refresh();modal.close();LF.notify(`${completed} ${completed===1?'memory':'memories'} saved.`);}catch(error){status.textContent=`${completed} saved. ${error.message}`;await refresh();}finally{save.disabled=false;input.disabled=false;}};
  };

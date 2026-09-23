@@ -70,7 +70,7 @@
   let grid=document.querySelector('.gallery, .gallery-container, #memory-photos, #video-grid');
   if(!grid){grid=LF.el('section','','lf-grid');document.querySelector('main').append(grid);}
   grid.replaceChildren(); grid.classList.add('lf-album');
-  grid.classList.toggle('lf-polaroid-album',['first-date','story-begins','best-part','birthday','family','airport','nagarkot'].includes(collection));
+  grid.classList.toggle('lf-square-album',['first-date','story-begins','best-part','birthday','family','airport','nagarkot'].includes(collection));
   LF.state.media.filter(item=>!item.deleted&&item.collections.includes(collection)).forEach(item=>{if(collection==='videos'){grid.append(LF.card(item));return;}const tile=LF.tile(item);if(collection==='favorite'){const cell=LF.el('div','','gallery-item');cell.append(tile);grid.append(cell);}else if(item.kind==='video'){const cell=LF.el('div','','lf-photo');const edit=LF.el('button','Edit','lf-inline-edit');edit.onclick=()=>LF.editMedia(item);cell.append(tile,edit);grid.append(cell);}else grid.append(tile);});
   if(!grid.children.length)grid.append(LF.el('p','No memories here yet. Add your first photo or video.'));
   if(!document.getElementById('lf-add-media')) {const button=LF.el('button','＋ Add photos or videos','lf-action');button.id='lf-add-media';button.onclick=()=>LF.addMedia(collection);grid.before(button);}
