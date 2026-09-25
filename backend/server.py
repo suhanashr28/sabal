@@ -107,6 +107,12 @@ class Handler(BaseHTTPRequestHandler):
   except cookies.CookieError: return ''
  def authorized(self):
   with self.app.db() as db: return db.execute('SELECT 1 FROM sessions WHERE token=? AND expires>?',(self.token(),time.time())).fetchone() is not None
+ def account_state(self):
+  state=self.app.state()
+  with self.app.db() as db:
+   preference=db.execute('SELECT profile FROM account_preferences JOIN account_sessions ON account_preferences.user_id=account_sessions.user_id WHERE account_sessions.token=?',(self.token(),)).fetchone()
+  state['activeProfile']=preference['profile'] if preference else None
+  return state
  def session(self,remember=False,user_id=None):
   raw=secrets.token_urlsafe(32); duration=30*86400 if remember else 12*3600
   with self.app.db() as db:
@@ -188,7 +194,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/api/logout' and method=='POST':
    with self.app.db() as db: db.execute('DELETE FROM sessions WHERE token=?',(self.token(),))
    return self.reply({'ok':True},cookie='lf_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
-  if path=='/api/state' and method=='GET': return self.reply(self.app.state())
+  if path=='/api/state' and method=='GET': return self.reply(self.account_state())
   if path=='/api/counter' and method=='GET':
    with self.app.db() as db: settings=json.loads(db.execute('SELECT value FROM settings WHERE id=1').fetchone()[0])
    return self.reply(dict(settings=settings,counter=counter(settings)))

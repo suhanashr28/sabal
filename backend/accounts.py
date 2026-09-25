@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 from .errors import APIError
 
 SCHEMA = [
+ 'CREATE TABLE IF NOT EXISTS account_preferences(user_id BIGINT PRIMARY KEY REFERENCES users(id),profile TEXT NOT NULL)',
  'CREATE TABLE IF NOT EXISTS account_details(user_id BIGINT PRIMARY KEY REFERENCES users(id),name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,phone TEXT NOT NULL)',
  'CREATE TABLE IF NOT EXISTS password_resets(token TEXT PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES users(id),expires DOUBLE PRECISION NOT NULL)',
  'CREATE TABLE IF NOT EXISTS account_sessions(token TEXT PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES users(id))',
@@ -65,6 +66,15 @@ def send_reset(address,token):
 
 def handle(handler,path):
  data=handler.json_body()
+ if path=='/api/accounts/profile':
+  if not handler.authorized(): raise APIError('Please log in again.',401)
+  profile=handler.text(data,'profile',20,True)
+  if profile not in ['my','sabal']: raise APIError('Profile not found.',404)
+  with handler.app.db() as db:
+   account=db.execute('SELECT user_id FROM account_sessions WHERE token=?',(handler.token(),)).fetchone()
+   if account:
+    db.execute('INSERT INTO account_preferences(user_id,profile) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET profile=excluded.profile',(account['user_id'],profile))
+  return handler.reply({'ok':True})
  if path=='/api/accounts/change-password':
   if not handler.authorized(): raise APIError('Please log in again.',401)
   with handler.app.db() as db:

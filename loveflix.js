@@ -1,7 +1,12 @@
 (() => {
  const LF = window.LF = {};
  LF.el = (tag, text = '', cls = '') => { const el = document.createElement(tag); el.textContent = text; el.className = cls; return el; };
- LF.profile = () => { const requested = new URLSearchParams(location.search).get('profile'); const saved = localStorage.getItem('lf-active-profile'); const value = ['my','sabal'].includes(requested) ? requested : ['my','sabal'].includes(saved) ? saved : 'sabal'; localStorage.setItem('lf-active-profile', value); return value; };
+ LF.profile = () => LF.activeProfile || localStorage.getItem('lf-active-profile') || 'sabal';
+ LF.selectProfile = async profile => {
+  if(!['my','sabal'].includes(profile))return;
+  await LF.save('/api/accounts/profile','POST',{profile});
+  LF.activeProfile=profile;localStorage.setItem('lf-active-profile',profile);
+ };
  LF.api = async (path, options = {}) => {
   const response = await fetch(path, {credentials:'same-origin', ...options, headers: {...(options.body && typeof options.body === 'string' ? {'Content-Type':'application/json'} : {}), ...options.headers}});
   const data = await response.json().catch(() => ({error:'The local server did not respond correctly.'}));
@@ -30,7 +35,7 @@
   if(item.id.startsWith('media:'))item={...item,image:item.image?`/media/${item.id.slice(6)}`:''};
   const button = LF.el('button','','lf-heart'); button.type='button';
   const sync = () => { const saved = LF.state.favorites[LF.profile()].some(x=>x.id===item.id); button.textContent=saved?'♥ Loved':'♡ Love'; button.setAttribute('aria-pressed',String(saved)); button.setAttribute('aria-label',`${saved?'Remove from':'Add to'} favorites: ${item.title}`); };
-  button.onclick=async event => { event.preventDefault(); event.stopPropagation(); button.disabled=true; try { const saved=LF.state.favorites[LF.profile()].some(x=>x.id===item.id); await LF.save(`/api/favorites/${LF.profile()}`,saved?'DELETE':'PUT',item); LF.state.favorites[LF.profile()]=saved?LF.state.favorites[LF.profile()].filter(x=>x.id!==item.id):[...LF.state.favorites[LF.profile()],item]; document.dispatchEvent(new Event('lf-favorites')); LF.notify(saved?'Removed from favorites.':'Saved to favorites.'); } catch(error) { LF.notify(error.message); } finally {button.disabled=false;} };
+  button.onclick=async event => { event.preventDefault(); event.stopPropagation(); button.disabled=true; try { const profile=LF.profile(),saved=LF.state.favorites[profile].some(x=>x.id===item.id); await LF.save(`/api/favorites/${profile}`,saved?'DELETE':'PUT',item); LF.state.favorites[profile]=saved?LF.state.favorites[profile].filter(x=>x.id!==item.id):[...LF.state.favorites[profile],item]; document.dispatchEvent(new Event('lf-favorites')); LF.notify(saved?'Removed from favorites.':'Saved to favorites.'); } catch(error) { LF.notify(error.message); } finally {button.disabled=false;} };
   // A shared render updates connected buttons without accumulating event listeners.
   button._sync=sync; sync(); return button;
  };
@@ -53,6 +58,7 @@
  };
  function renderFavorites() {
   const grid=document.getElementById('saved-favorites'); if(!grid || !LF.state)return; grid.replaceChildren();
+  const label=document.getElementById('favorites-profile-label');if(label)label.textContent=`Saved for ${LF.state.profiles.find(p=>p.id===LF.profile())?.name||'your profile'}. Your favorites stay saved after logout.`;
   const items=LF.state.favorites[LF.profile()].filter(item=>!item.id.startsWith('media:') || !LF.media(item.id.slice(6))?.deleted);
   document.getElementById('favorites-empty').hidden=items.length>0;
   items.forEach(item=> { if(item.id.startsWith('media:')){const media=LF.media(item.id.slice(6));if(media)grid.append(LF.card(media));return;} const card=LF.el('article','','lf-card'),link=LF.el('a');link.href=item.href;if(item.image){const img=LF.el('img');img.src=item.image;img.alt=item.title;link.append(img);}link.append(LF.el('h2',item.title));card.append(link,LF.favorite(item));grid.append(card); });
@@ -96,17 +102,23 @@
  function renderProfiles() {
   const current=LF.state.profiles.find(p=>p.id===LF.profile());
   document.querySelectorAll('.mini-profile').forEach(node=>{node.replaceChildren();node.setAttribute('aria-label',`${current.name}: switch profile`);if(current.picture){const img=LF.el('img');img.src=current.picture;img.alt=current.name;node.append(img);}else node.textContent=current.name[0];});
-  document.querySelectorAll('.profile-card').forEach(card=> {const id=new URL(card.href).searchParams.get('profile');const p=LF.state.profiles.find(p=>p.id===id);if(!p)return;card.onclick=()=>localStorage.setItem('lf-active-profile',id); const avatar=card.querySelector('.avatar');avatar.replaceChildren();if(p.picture){const img=LF.el('img');img.src=p.picture;img.alt=p.name;avatar.append(img);}else avatar.textContent=p.name[0];card.querySelector(':scope > span').textContent=p.name;});
+  document.querySelectorAll('.profile-card').forEach(card=> {const id=new URL(card.href).searchParams.get('profile');const p=LF.state.profiles.find(p=>p.id===id);if(!p)return;card.onclick=async event=>{event.preventDefault();try{await LF.selectProfile(id);location.href=card.href;}catch(error){LF.notify(error.message);}}; const avatar=card.querySelector('.avatar');avatar.replaceChildren();if(p.picture){const img=LF.el('img');img.src=p.picture;img.alt=p.name;avatar.append(img);}else avatar.textContent=p.name[0];card.querySelector(':scope > span').textContent=p.name;});
  }
  LF.render=()=>{renderAlbum();renderFavorites();renderProfiles();syncMedia();};
  document.addEventListener('visibilitychange',async()=>{if(!document.hidden&&LF.state&&!document.querySelector('dialog[open],.lf-editing')&&![...document.querySelectorAll('video')].some(v=>!v.paused)){try{await LF.refresh();LF.render();}catch(error){LF.notify(error.message);}}});
  LF.ready = new Promise(resolve=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',resolve,{once:true}):resolve()).then(async()=> {
   if(location.pathname.endsWith('login.html'))return;
   try {
-   await LF.refresh(); LF.render();
+   await LF.refresh();
+   const requested=new URLSearchParams(location.search).get('profile');
+   LF.activeProfile=LF.state.activeProfile||localStorage.getItem('lf-active-profile')||'sabal';
+   if(!['my','sabal'].includes(LF.activeProfile))LF.activeProfile='sabal';
+   if(['my','sabal'].includes(requested)||!LF.state.activeProfile)await LF.selectProfile(['my','sabal'].includes(requested)?requested:LF.activeProfile);
+   else localStorage.setItem('lf-active-profile',LF.activeProfile);
+   LF.render();
    document.querySelectorAll('.memory-card').forEach(card=> {const href=card.getAttribute('href'),title=card.querySelector('strong')?.textContent||'Our memory';const wrap=LF.el('div','','lf-memory');card.before(wrap);wrap.append(card,LF.favorite({id:`memory:${href}`,title,href,image:card.querySelector('img')?.dataset.original||''}));});
    if(!['home.html','settings.html','profile.html','watch.html','favorites.html','login.html','index.html'].includes(location.pathname.split('/').pop())) {const heading=document.querySelector('main h1');if(heading)heading.after(LF.favorite({id:`page:${LF.page()}`,title:heading.textContent,href:LF.page(),image:''}));}
-   const requested=new URLSearchParams(location.search).get('media');if(requested){const item=LF.media(requested);if(item&&!item.deleted)LF.openMedia(item);}
+   const requestedMedia=new URLSearchParams(location.search).get('media');if(requestedMedia){const item=LF.media(requestedMedia);if(item&&!item.deleted)LF.openMedia(item);}
    document.dispatchEvent(new Event('lf-ready'));
   } catch(error) {LF.notify(error.message==='Failed to fetch'?'Start the LoveFlix server to load and save your memories.':error.message);}
  });

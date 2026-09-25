@@ -17,7 +17,7 @@ class AccountTests(unittest.TestCase):
    digest=m.hashlib.scrypt(password.encode(),salt=bytes.fromhex(salt),n=16384,r=8,p=1).hex()
    with app.db() as db:
     # Recreate the pre-account-details schema used by the original app.
-    for table in ['account_details','account_sessions','password_resets']:
+    for table in ['account_details','account_sessions','password_resets','account_preferences']:
      db.execute(f'DROP TABLE {table}')
     db.execute('DROP TABLE users')
     db.execute('CREATE TABLE users(id INTEGER PRIMARY KEY CHECK(id=1),username TEXT NOT NULL,salt TEXT NOT NULL,password TEXT NOT NULL)')

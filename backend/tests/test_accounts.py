@@ -68,3 +68,19 @@ class AccountTests(unittest.TestCase):
   self.assertEqual(self.request('/api/state',cookie=cookie)[0],401)
   self.assertEqual(self.request('/api/accounts/login',{'identity':'person@example.com','password':'first-password-123'})[0],401)
   self.assertEqual(self.request('/api/accounts/login',{'identity':'person@example.com','password':'replacement-password'})[0],200)
+
+ def test_favorites_and_profile_survive_logout_and_new_login(self):
+  self.register()
+  login=lambda:self.request('/api/accounts/login',{'identity':'person@example.com','password':'first-password-123'})[2]['Set-Cookie'].split(';')[0]
+  cookie=login()
+  self.assertEqual(self.request('/api/accounts/profile',{'profile':'my'},cookie)[0],200)
+  conn=http.client.HTTPConnection('localhost',self.server.server_port)
+  item={'id':'page:love-story.html','title':'Our story','href':'love-story.html','image':''}
+  conn.request('PUT','/api/favorites/my',json.dumps(item),{'Content-Type':'application/json','Cookie':cookie})
+  response=conn.getresponse();self.assertEqual(response.status,200);response.read();conn.close()
+  self.assertEqual(self.request('/api/logout',{},cookie)[0],200)
+  self.assertEqual(self.request('/api/state',cookie=cookie)[0],401)
+  state=self.request('/api/state',cookie=login())[1]
+  self.assertEqual(state['activeProfile'],'my')
+  self.assertEqual(state['favorites']['my'],[item])
+  self.assertEqual(state['favorites']['sabal'],[])

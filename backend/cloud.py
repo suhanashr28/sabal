@@ -131,7 +131,7 @@ class CloudHandler(Handler):
         if path == '/api/state' and method == 'GET':
             if not self.authorized():
                 raise APIError('Please sign in.',401)
-            state = self.app.state()
+            state = self.account_state()
             state['directUploads'] = True
             return self.reply(state)
         if path.startswith('/media/') and method in ['GET','HEAD']:
