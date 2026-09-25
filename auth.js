@@ -16,6 +16,7 @@
   document.getElementById('login-link').hidden=mode==='login';document.getElementById('register-link').hidden=mode!=='login';
   document.getElementById('register-note').hidden=mode!=='register';
   if(mode==='reset'&&!token){status.textContent='This reset link is incomplete. Please request a new link.';submit.disabled=true;}
+  if(mode==='login'&&params.get('passwordChanged'))status.textContent='Password changed. Log in with your new password.';
   if(mode==='login'&&params.get('created'))status.textContent='Account created. Log in with your email and password.';
  }
  document.querySelectorAll('.password-toggle').forEach(button=>button.addEventListener('click',()=>{const input=document.getElementById(button.getAttribute('aria-controls'));const show=input.type==='password';input.type=show?'text':'password';button.textContent=show?'Hide':'Show';button.setAttribute('aria-label',show?'Hide password':'Show password');button.setAttribute('aria-pressed',String(show));}));

@@ -65,6 +65,24 @@ def send_reset(address,token):
 
 def handle(handler,path):
  data=handler.json_body()
+ if path=='/api/accounts/change-password':
+  if not handler.authorized(): raise APIError('Please log in again.',401)
+  with handler.app.db() as db:
+   user=db.execute('SELECT users.* FROM users JOIN account_sessions ON users.id=account_sessions.user_id WHERE account_sessions.token=?',(handler.token(),)).fetchone()
+  if not user: raise APIError('Please sign out and log in again before changing your password.',403)
+  rate_limit(handler,'change-password',str(user['id']),5,300)
+  current=handler.text(data,'current_password',200,True)
+  password=password_value(handler,data)
+  if not hmac.compare_digest(digest(current,user['salt']),user['password']): raise APIError('Your current password is incorrect.',403)
+  if password==current: raise APIError('Choose a different new password.')
+  salt=secrets.token_hex(16);hashed=digest(password,salt)
+  with handler.app.db() as db:
+   updated=db.execute('UPDATE users SET salt=?,password=? WHERE id=? AND password=? RETURNING id',(salt,hashed,user['id'],user['password'])).fetchone()
+   if not updated: raise APIError('Your password changed elsewhere. Please log in again.',403)
+   db.execute('DELETE FROM password_resets WHERE user_id=?',(user['id'],))
+   db.execute('DELETE FROM sessions WHERE token IN (SELECT token FROM account_sessions WHERE user_id=?)',(user['id'],))
+   db.execute('DELETE FROM account_sessions WHERE user_id=?',(user['id'],))
+  return handler.reply({'ok':True},cookie='lf_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
  if path.endswith('/register'):
   name=handler.text(data,'name',100,True).strip()
   email=email_address(handler.text(data,'email',254,True))

@@ -56,3 +56,15 @@ class AccountTests(unittest.TestCase):
   with patch('backend.accounts.mail_configured',return_value=True):
    for _ in range(3):self.assertEqual(self.request('/api/accounts/forgot',{'email':'unknown@example.com'})[0],200)
    self.assertEqual(self.request('/api/accounts/forgot',{'email':'unknown@example.com'})[0],429)
+
+ def test_change_password_requires_current_password_and_revokes_sessions(self):
+  self.register()
+  login=self.request('/api/accounts/login',{'identity':'person@example.com','password':'first-password-123'})
+  cookie=login[2]['Set-Cookie'].split(';')[0]
+  payload={'current_password':'first-password-123','password':'replacement-password'}
+  self.assertEqual(self.request('/api/accounts/change-password',payload)[0],401)
+  self.assertEqual(self.request('/api/accounts/change-password',dict(payload,current_password='incorrect'),cookie)[0],403)
+  self.assertEqual(self.request('/api/accounts/change-password',payload,cookie)[0],200)
+  self.assertEqual(self.request('/api/state',cookie=cookie)[0],401)
+  self.assertEqual(self.request('/api/accounts/login',{'identity':'person@example.com','password':'first-password-123'})[0],401)
+  self.assertEqual(self.request('/api/accounts/login',{'identity':'person@example.com','password':'replacement-password'})[0],200)
